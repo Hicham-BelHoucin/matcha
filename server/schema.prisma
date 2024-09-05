@@ -1,41 +1,113 @@
-datasource db {
-    provider = "mysql"
-    url      = env("DATABASE_URL")
-}
-
+// schema.prisma
 generator client {
     provider = "prisma-client-js"
 }
 
-enum GENDER {
-    MALE
-    FAMALE
-    OTHER
+datasource db {
+    provider = "postgresql"
+    url      = "postgresql://username:password@localhost:5432/property_management_db"
 }
 
 model User {
-    id                Int      @id @default(autoincrement())
-    email             String   @unique
-    firstName         String
+    id                Int       @id @default(autoincrement())
+    email             String    @unique
+    username          String    @unique
     lastName          String
-    hashedPassword    String
-    sexualPreference  String
-    gender            GENDER
+    firstName         String
+    passwordHash      String
+    gender            String?
+    sexualPreferences String?
     biography         String?
     profilePictureUrl String?
-    fameRating        Int      @default(0)
-    createdAt         DateTime @default(now())
-    updatedAt         DateTime @updatedAt
-    likesSent         Like[]   @relation("sentLikes")
-    likesReceived     Like[]   @relation("receivedLikes")
+    location          String?
+    fameRating        Float? // Example: rating from 0.0 to 5.0
+    gpsLatitude       Float?
+    gpsLongitude      Float?
+    lastSeen          DateTime  @default(now())
+    birthDate         DateTime
+    pictures          Picture[]
+    visits            Visit[]   @relation("UserVisits")
+    visitors          Visit[]   @relation("VisitorVisits")
+    blockedUsers      Block[]   @relation("Blocked")
+    blockedBy         Block[]   @relation("Blocker")
+
+    sentMessages        Message[]    @relation("SentMessages")
+    receivedMessages    Message[]    @relation("ReceivedMessages")
+    sentConnections     Connection[] @relation("UserConnections")
+    receivedConnections Connection[] @relation("ConnectionUsers")
+
+    // Relationships
+    receivedLikes Like[]         @relation("ReceivedLikes")
+    sentLikes     Like[]         @relation("SentLikes")
+    interests     Interest[]     @relation("UserInterests")
+    Notification  Notification[]
+}
+
+model Interest {
+    id    Int    @id @default(autoincrement())
+    tag   String @unique
+    users User[] @relation("UserInterests")
+}
+
+model Picture {
+    id        Int     @id @default(autoincrement())
+    url       String
+    userId    Int
+    isProfile Boolean @default(false)
+    user      User    @relation(fields: [userId], references: [id])
+}
+
+model Visit {
+    id        Int      @id @default(autoincrement())
+    visitedAt DateTime @default(now())
+    userId    Int
+    visitedBy Int
+    user      User     @relation("UserVisits", fields: [userId], references: [id])
+    visitor   User     @relation("VisitorVisits", fields: [visitedBy], references: [id])
 }
 
 model Like {
+    id          Int      @id @default(autoincrement())
+    likedAt     DateTime @default(now())
+    userId      Int
+    likedUserId Int
+    user        User     @relation("SentLikes", fields: [userId], references: [id])
+    likedUser   User     @relation("ReceivedLikes", fields: [likedUserId], references: [id])
+}
+
+model Block {
+    id        Int      @id @default(autoincrement())
+    blockedAt DateTime @default(now())
+    blockerId Int
+    blockedId Int
+    blocker   User     @relation("Blocker", fields: [blockerId], references: [id])
+    blocked   User     @relation("Blocked", fields: [blockedId], references: [id])
+}
+
+model Connection {
+    id           Int      @id @default(autoincrement())
+    connectedAt  DateTime @default(now())
+    userId       Int
+    connectionId Int
+    user         User     @relation("UserConnections", fields: [userId], references: [id])
+    connection   User     @relation("ConnectionUsers", fields: [connectionId], references: [id])
+}
+
+model Message {
     id         Int      @id @default(autoincrement())
+    content    String
+    sentAt     DateTime @default(now())
     senderId   Int
     receiverId Int
-    createdAt  DateTime @default(now())
+    sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+    receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
 
-    sender   User @relation("sentLikes", fields: [senderId], references: [id])
-    receiver User @relation("receivedLikes", fields: [receiverId], references: [id])
+model Notification {
+    id        Int      @id @default(autoincrement())
+    type      String // e.g., "like", "view", "message", "connect"
+    content   String
+    createdAt DateTime @default(now())
+    userId    Int
+    user      User     @relation(fields: [userId], references: [id])
 }
