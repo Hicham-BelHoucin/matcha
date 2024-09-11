@@ -1,5 +1,6 @@
 import { QueryBuilder } from "./../sql-builder/queryBuilder";
 import { Database } from "./../sql-builder/database";
+import { createLike, deleteLike, getLikedUsers } from "./like.service";
 
 const usersTable = new QueryBuilder("User");
 
@@ -70,7 +71,7 @@ export async function findUserById(id: number) {
       })
       .findOne();
     const result = await Database.query(query);
-    return result;
+    return result[0];
   } catch (err) {
     console.error(err);
   }
@@ -85,7 +86,7 @@ export async function findUserByEmail(email: string) {
       })
       .findOne();
     const result = await Database.query(query);
-    return result;
+    return result[0];
   } catch (err) {
     console.error(err);
   }
@@ -100,7 +101,7 @@ export async function findUserByUsername(username: string) {
       })
       .findOne();
     const result = await Database.query(query);
-    return result;
+    return result[0];
   } catch (err) {
     console.error(err);
   }
@@ -142,5 +143,25 @@ export async function getUsers() {
     return result;
   } catch (err) {
     console.error(err);
+  }
+}
+
+export async function likeUserProfile(userId: number, likedUserId: number) {
+  try {
+    await createLike({ userId, likedUserId });
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
+
+export async function unlikeUserProfile(userId: number, likedUserId: number) {
+  try {
+    await deleteLike({ userId, likedUserId });
+    return true;
+  } catch (err) {
+    console.error(err);
+    return false;
   }
 }

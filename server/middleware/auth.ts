@@ -35,21 +35,25 @@ export const verifyToken = (req: any) => {
 };
 
 export const authMiddleware: Middleware = (req: any, res, next) => {
-  const token = getToken(req);
+  try {
+    const token = getToken(req);
 
-  if (!token) {
-    return res.status(401).send("Unauthorized");
+    if (!token) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const user = verify(token);
+
+    if (!user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    console.log("user", user);
+    // add user to request object
+    req.user = user;
+    next();
+  } catch (error: any) {
+    console.error(JSON.stringify(error));
+    res.status(401).send(error.message || "Unauthorized");
   }
-
-  const user = verify(token);
-
-  if (!user) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  console.log("user", user);
-  // add user to request object
-  req.user = user;
-
-  next();
 };

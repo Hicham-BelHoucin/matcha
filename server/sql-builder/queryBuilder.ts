@@ -73,6 +73,11 @@ export class QueryBuilder {
     const columns = Array.isArray(this.columns)
       ? this.columns.join(", ")
       : this.columns;
-    return `SELECT ${columns} FROM "${this.tableName}" ${this.joins}${this.conditions}`.trim();
+    const query =
+      `SELECT ${columns} FROM "${this.tableName}" ${this.joins}${this.conditions}`.trim();
+    // return the query string
+    this.conditions = "";
+    this.joins = "";
+    return query;
   }
 }

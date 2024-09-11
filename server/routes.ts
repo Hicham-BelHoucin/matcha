@@ -3,11 +3,14 @@ import { loginRoute, registerRoute } from "./handlers/auth";
 import {
   getAllUsers,
   getUserProfile,
+  likeUser,
+  unlikeUser,
   updateUserProfile,
 } from "./handlers/users";
 import { authMiddleware } from "./middleware/auth";
 import { requestLogger } from "./middleware/requestLogger";
 import validateRequest from "./middleware/validatRequest";
+import { unlikeUserProfile } from "./services/users.service";
 import { Route } from "./types";
 
 export const routes: Route[] = [
@@ -40,5 +43,17 @@ export const routes: Route[] = [
     path: "/users/profile",
     middleware: [authMiddleware],
     handler: updateUserProfile,
+  },
+  {
+    method: "post",
+    path: "/users/like",
+    middleware: [authMiddleware],
+    handler: likeUser,
+  },
+  {
+    method: "post",
+    path: "/users/unlike",
+    middleware: [authMiddleware],
+    handler: unlikeUser,
   },
 ];
