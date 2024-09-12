@@ -101,6 +101,15 @@ model Message {
     receiverId Int
     sender     User     @relation("SentMessages", fields: [senderId], references: [id])
     receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+    Dm         Dm       @relation("DmMessages", fields: [dmId], references: [id])
+    dmId       Int
+}
+
+model Dm {
+    id       Int       @id @default(autoincrement())
+    content  String
+    sentAt   DateTime  @default(now())
+    messages Message[] @relation("DmMessages")
 }
 
 model Notification {

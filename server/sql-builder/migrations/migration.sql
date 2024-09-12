@@ -5,7 +5,7 @@ CREATE TABLE "User" (
     "username" VARCHAR(255) UNIQUE NOT NULL,
     "lastName" VARCHAR(255) NOT NULL,
     "firstName" VARCHAR(255) NOT NULL,
-    "passwordHash" VARCHAR(255) NOT NULL,
+    "password" VARCHAR(255) NOT NULL,
     "gender" VARCHAR(50),
     "sexualPreferences" VARCHAR(50),
     "biography" TEXT,
@@ -73,6 +73,13 @@ CREATE TABLE "Connection" (
     FOREIGN KEY ("connectionId") REFERENCES "User" ("id")
 );
 
+-- Create Dm Table
+CREATE TABLE "Dm" (
+    "id" SERIAL PRIMARY KEY,
+    "content" TEXT NOT NULL,
+    "sentAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create Message Table
 CREATE TABLE "Message" (
     "id" SERIAL PRIMARY KEY,
@@ -80,8 +87,10 @@ CREATE TABLE "Message" (
     "sentAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "senderId" INTEGER NOT NULL,
     "receiverId" INTEGER NOT NULL,
+    "dmId" INTEGER NOT NULL,
     FOREIGN KEY ("senderId") REFERENCES "User" ("id"),
-    FOREIGN KEY ("receiverId") REFERENCES "User" ("id")
+    FOREIGN KEY ("receiverId") REFERENCES "User" ("id"),
+    FOREIGN KEY ("dmId") REFERENCES "Dm" ("id")
 );
 
 -- Create Notification Table
@@ -95,6 +104,7 @@ CREATE TABLE "Notification" (
 );
 
 -- Create Many-to-Many Relationship Tables
+
 CREATE TABLE "User_Interests" (
     "userId" INTEGER NOT NULL,
     "interestId" INTEGER NOT NULL,

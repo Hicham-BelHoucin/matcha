@@ -21,7 +21,14 @@ routes.forEach((route) => {
   app[method](path, ...middleware, handler);
 });
 
+// Database.applyMigrations();
+
 app.listen(PORT, () => {
+  console.clear();
+  routes.forEach((route) => {
+    const { method, path } = route;
+    console.log(`Route: ${method.toUpperCase()} ${path}`);
+  });
   console.log(`Express Typescript app @ http://localhost:${PORT}`);
 });
 // async function main() {

@@ -13,7 +13,9 @@ export class QueryBuilder {
   }
 
   select(columns: string[] | string = "*"): this {
-    this.columns = columns;
+    this.columns = Array.isArray(columns)
+      ? columns.map((column) => `"${column}"`).join(", ")
+      : columns;
     return this;
   }
 
@@ -58,12 +60,31 @@ export class QueryBuilder {
     const values = Object.values(data)
       .map((value) => (typeof value === "string" ? `'${value}'` : value))
       .join(", ");
+    console.log(
+      `INSERT INTO "${this.tableName}" (${columns}) VALUES (${values})`
+    );
     return `INSERT INTO "${this.tableName}" (${columns}) VALUES (${values})`;
   }
 
   where(conditions: { [key: string]: any }): this {
     const conditionStr = Object.entries(conditions)
-      .map(([key, value]) => `${key} = '${value}'`)
+      .map(([key, value]) => `"${key}" = '${value}'`)
+      .join(" AND ");
+    this.conditions = `WHERE ${conditionStr}`;
+    return this;
+  }
+
+  orWhere(conditions: { [key: string]: any }): this {
+    const conditionStr = Object.entries(conditions)
+      .map(([key, value]) => `"${key}" = '${value}'`)
+      .join(" OR ");
+    this.conditions = `WHERE ${conditionStr}`;
+    return this;
+  }
+
+  whereContains(conditions: { [key: string]: any }): this {
+    const conditionStr = Object.entries(conditions)
+      .map(([key, value]) => `"${key}" LIKE '%${value}%'`)
       .join(" AND ");
     this.conditions = `WHERE ${conditionStr}`;
     return this;

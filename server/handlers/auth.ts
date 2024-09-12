@@ -21,7 +21,7 @@ export const registerRoute: Handler = async (req, res) => {
     const user = await register(req.body);
     res.status(201).json(user);
   } catch (error: any) {
-    // console.error(error);
+    console.error(error);
     res.status(500).send(error.message);
   }
 };
