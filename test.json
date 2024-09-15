@@ -1,0 +1,17 @@
+{
+  "email": "examplecfvbd@example.com",
+  "username": "Hicham El Khalfi",
+  "lastName": "Doe",
+  "firstName": "John",
+  "passwordHash": "hashed_password",
+  "gender": "Male",
+  "sexualPreferences": "Heterosexual",
+  "biography": "This is a biography.",
+  "profilePictureUrl": "https://example.com/profile.jpg",
+  "location": "New York",
+  "fameRating": 4.5,
+  "gpsLatitude": 40.7128,
+  "gpsLongitude": -74.006,
+  "lastSeen": "2024-09-04T13:01:23.349Z",
+  "birthDate": "1990-01-01T00:00:00.000Z"
+}
