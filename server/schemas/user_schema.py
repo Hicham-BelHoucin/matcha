@@ -25,3 +25,14 @@ class UserSchema(Schema):
         """Ensure the birth date is in the past."""
         if value > datetime.now().date():
             raise ValidationError("Birth date cannot be in the future.")
+        
+class UpdateUserSchema(Schema):
+    email = fields.Email(validate=validate.Length(max=255))  # Email validation
+    username = fields.Str(validate=validate.Length(max=255))  # Username must be unique
+    lastName = fields.Str(validate=validate.Length(max=255))  # Last name cannot be empty
+    firstName = fields.Str(validate=validate.Length(max=255))  # First name cannot be empty
+    password = fields.Str(validate=validate.Length(min=6))  # Ensure password has minimum length
+
+class ReportUserSchema(Schema):
+    reported_user_id = fields.Int(required=True)
+    reason = fields.Str(required=True, validate=validate.Length(max=255))

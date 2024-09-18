@@ -1,8 +1,10 @@
-# app/services/users/user.py
+# app/services/users/users_service.py
 from werkzeug.exceptions import InternalServerError, NotFound, Unauthorized
-from ..users.service import User, hash_password, check_password
+from ..users.service import UserService
 from .tools import generate_token, decode_token
 import random
+
+users_service = UserService()
 
 def generate_reset_code():
     reset_code = random.randint(100000, 999999)  # Generate a random 6-digit number
@@ -11,10 +13,10 @@ def generate_reset_code():
 class Auth:
     def login(email, password):
         try: 
-            user = User.get_user_by_email(email)
+            user = users_service.get_user_by_email(email)
             if not user:
                 raise NotFound("User not found")
-            if not check_password(password, user['password']):
+            if not users_service.check_password(password, user['password']):
                 raise Unauthorized("Invalid password")
             access_token = generate_token(user['id'])
             return {"access_token": str(access_token)}, 200
@@ -24,10 +26,10 @@ class Auth:
     
     def register(fields):
         try:
-            user = User.get_user_by_email(fields['email'])
+            user = users_service.get_user_by_email(fields['email'])
             if user:
                 raise InternalServerError("User already exists")
-            user = User.create_user(fields)
+            user = users_service.create_user(fields)
             return user, 201
         except InternalServerError as e:
             return {"message": e.description}, 500
@@ -37,20 +39,20 @@ class Auth:
     def reset_password(email):
         try:
             code = generate_reset_code()
-            user = User.get_user_by_email(email)
+            user = users_service.get_user_by_email(email)
             if not user:
                 raise NotFound("User not found")
-            User.update_user(user['id'], {"code": code})
+            users_service.update_user(user['id'], {"code": code})
             return {"message": "Reset code is valid", "code" : code}, 200
         except Exception as e:
             return {"message": str(e)}, 500
         
     def change_password(email, code,password):
-        user = User.get_user_by_email(email)
+        user = users_service.get_user_by_email(email)
         if not user:
             raise NotFound("User not found")
         print(user['code'], code)
         if user['code'] != str(code):
             raise Unauthorized("Invalid reset code")
-        User.update_user(user['id'], {"password": hash_password(password)})
+        users_service.update_user(user['id'], {"password": users_service.hash_password(password)})
         return {"message": "Password updated successfully"}, 200

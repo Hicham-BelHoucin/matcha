@@ -29,26 +29,29 @@ def unauthorized(error):
     
 @app.errorhandler(500)
 def internal_server_error(error):
-    return jsonify({
+    return {
         "error": "Internal Server Error",
         "message": error.description
-    }), 500
-    
-# Handle any other Exception (optional)
-@app.errorhandler(Exception)
-def handle_exception(e):
-    # Handle specific known exceptions differently if you want
-    if isinstance(e, KeyError):
-        return {
-            "error": "KeyError",
-            "message": str(e)
-        }, 400
-    
-    # Generic catch-all for other unhandled exceptions
-    return {
-        "error": "Unhandled Exception",
-        "message": str(e)
     }, 500
+    
+# # Handle any other Exception (optional)
+# @app.errorhandler(Exception)
+# def handle_exception(e):
+#     # Handle specific known exceptions differently if you want
+#     if isinstance(e, KeyError):
+#         return {
+#             "error": "KeyError",
+#             "message": str(e)
+#         }, 400
+    
+    
+#     message = getattr(e, 'description', str(e))
+#     error = str(e).split(":")[0]
+#     # Generic catch-all for other unhandled exceptions
+#     return {
+#         "error": error,
+#         "message": message
+#     }, 500
 
 if __name__ == '__main__':
     app.run(debug=True)

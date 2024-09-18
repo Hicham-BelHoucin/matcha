@@ -7,3 +7,4 @@
 *.vscode
 /myenv/
 .env
+test.html

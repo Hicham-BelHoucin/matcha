@@ -20,13 +20,19 @@ CREATE TABLE "User" (
     "gpsLongitude" FLOAT,
     "lastSeen" TIMESTAMPTZ DEFAULT NOW(),
     "birthDate" DATE NOT NULL
+    "interests" VARCHAR(255)[] DEFAULT '{}',
 );
 
--- Table for storing interests
-CREATE TABLE "Interest" (
+-- Table for reporting users as fake accounts
+CREATE TABLE "Report" (
     "id" SERIAL PRIMARY KEY,
-    "tag" VARCHAR(255) UNIQUE NOT NULL
+    "reportedAt" TIMESTAMPTZ DEFAULT NOW(),
+    "reporterId" INT REFERENCES "User" ("id") ON DELETE CASCADE,  -- User who reports
+    "reportedUserId" INT REFERENCES "User" ("id") ON DELETE CASCADE,  -- Reported user
+    "reason" TEXT NOT NULL  -- Reason for reporting
 );
+
+
 
 -- Table for storing pictures
 CREATE TABLE "Picture" (
@@ -94,13 +100,6 @@ CREATE TABLE "Notification" (
 );
 
 -- Many-to-many relationships
-
--- User to Interest
-CREATE TABLE "_UserToInterest" (
-    "A" INT REFERENCES "User" ("id") ON DELETE CASCADE,
-    "B" INT REFERENCES "Interest" ("id") ON DELETE CASCADE,
-    PRIMARY KEY ("A", "B")
-);
 
 -- User to Picture
 CREATE TABLE "_UserToPicture" (
