@@ -115,19 +115,39 @@ def get_blocks(user_id):
 def get_reports(user_id):
     return users_service.get_user_reports(user_id)
 
+@users.route('/search', methods=['GET'])
+@login_required
+def search_users(user_id):
+    username = request.args.get('username', default='', type=str)
+    sort = request.args.get('sort', default=None, type=str)
+    fame_rating_filter = request.args.get('filter[fameRating]', default=None, type=str)
+    tags_filter = request.args.get('filter[tags]', default=None, type=str)
+    age_filter = request.args.get('filter[age]', default=None, type=str)
+    location_filter = request.args.get('filter[location]', default=None, type=str)
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    print('limit:', username)
+    
+    return users_service.search(user_id, username, limit, offset, str(sort).split(','), {
+        'fame_rating': fame_rating_filter,
+        'tags': tags_filter,
+        'age': age_filter,
+        'location': location_filter
+    })
+    
+
 @users.route('/suggestoins', methods=['GET'])
 @login_required
 def get_suggestions(user_id):
     # Get query parameters
-    sort = request.args.get('sort', default='fame_rating', type=str)
-    fame_rating_filter = request.args.get('filter[fameRating]', default='range(18,45)', type=str)
-    tags_filter = request.args.get('filter[tags]', default='[]', type=str)
-    age_filter = request.args.get('filter[age]', default='range(18,45)', type=str)
-    location_filter = request.args.get('filter[location]', default='range(18,45)', type=str)
+    sort = request.args.get('sort', default=None, type=str)
+    fame_rating_filter = request.args.get('filter[fameRating]', default=None, type=str)
+    tags_filter = request.args.get('filter[tags]', default=None, type=str)
+    age_filter = request.args.get('filter[age]', default=None, type=str)
+    location_filter = request.args.get('filter[location]', default=None, type=str)
     limit = request.args.get('limit', default=50, type=int)
-    print('limit:', limit)
     offset = request.args.get('offset', default=0, type=int)
-    return users_service.suggestions(user_id, limit, offset, sort, {
+    return users_service.suggestions(user_id, limit, offset, str(sort).split(','), {
         'fame_rating': fame_rating_filter,
         'tags': tags_filter,
         'age': age_filter,

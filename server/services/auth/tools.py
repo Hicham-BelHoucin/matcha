@@ -5,6 +5,9 @@ from flask import current_app, request, g
 from jwt import ExpiredSignatureError, InvalidTokenError  # Correct import
 import pytz
 from werkzeug.exceptions import InternalServerError, NotFound, Unauthorized
+from server.services.users.service import UserService
+
+users_service = UserService()
 
 def generate_token(user_id):
     """Generate a new JWT token."""
@@ -38,6 +41,10 @@ def login_required(func):
         print('decoded:', decoded)
         if isinstance(decoded, dict) and 'message' in decoded:
             return decoded
+        try:
+            _ = users_service.get_user_by_id(decoded['user_id'])
+        except NotFound as e:
+            raise Unauthorized('User not found!')
         
         kwargs['user_id'] = decoded['user_id']
         # Token is valid; pass control to the protected function

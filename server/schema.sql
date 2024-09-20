@@ -19,8 +19,8 @@ CREATE TABLE "User" (
     "gpsLatitude" FLOAT,
     "gpsLongitude" FLOAT,
     "lastSeen" TIMESTAMPTZ DEFAULT NOW(),
-    "birthDate" DATE NOT NULL
-    "interests" VARCHAR(255)[] DEFAULT '{}',
+    "birthDate" DATE NOT NULL,
+    "interests" VARCHAR(255)[] DEFAULT '{}'
 );
 
 -- Table for reporting users as fake accounts

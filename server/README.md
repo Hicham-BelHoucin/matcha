@@ -1,3 +1,5 @@
+`export PYTHONPATH=/Users/hbel-hou/Desktop/matcha`
+
 ### API Design
 
 #### 1. **User Registration and Authentication**

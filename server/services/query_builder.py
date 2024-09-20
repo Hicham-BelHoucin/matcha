@@ -3,6 +3,7 @@ import os
 import psycopg2
 import json
 from werkzeug.exceptions import InternalServerError, BadRequest
+from flask import current_app
 
 
 class Model:
@@ -25,12 +26,20 @@ class Model:
     def initialize(self):
         if not self.connection:
             # Use PostgreSQL connection
+            # Get database configuration from Flask app's config
+            user = current_app.config['POSTGRES_USER']
+            password = current_app.config['POSTGRES_PASSWORD']
+            database = current_app.config['POSTGRES_DB']
+            host = current_app.config['DB_HOST']
+            port = current_app.config['DB_PORT']
+
+            # Establish the database connection
             self.connection = psycopg2.connect(
-                user=os.getenv('POSTGRES_USER', 'your_db_user'),
-                password=os.getenv('POSTGRES_PASSWORD', 'your_db_password'),
-                database=os.getenv('POSTGRES_DB', 'your_db_name'),
-                host=os.getenv('DB_HOST', 'localhost'),
-                port=os.getenv('DB_PORT', '5432')
+                user=user,
+                password=password,
+                database=database,
+                host=host,
+                port=port
             )
             print("Database connected")
     
@@ -155,7 +164,7 @@ class Model:
                     return "Data inserted successfully"
                 else:
                     # For select or delete
-                    # print(self.query)
+                    print(self.query)
                     cursor.execute(self.query)
                     if cursor.description:  # Only for SELECT
                         colnames = [desc[0] for desc in cursor.description]
