@@ -1,3 +1,4 @@
+# type: ignore
 # app/services/users/user.py
 from ..query_builder import Model
 from werkzeug.exceptions import InternalServerError, NotFound
@@ -8,6 +9,7 @@ bcrypt = Bcrypt()
 import geocoder
 from geopy.distance import geodesic
 from flask import request
+from ..notifications.service import NotificationService
 
 
 user_model = Model("User")
@@ -15,6 +17,7 @@ like_model = Model("Like")
 report_model = Model("Report")
 block_model = Model("Block")
 visit_model = Model("Visit")
+notification_service = NotificationService()
 
 class UserService:
     def __init__(self):
@@ -22,11 +25,28 @@ class UserService:
     
     @staticmethod
     def hash_password(password):
+        """
+        Hash the password using bcrypt
+        Args:
+            password (str): The password to hash
+
+        Returns:
+            str: The hashed password
+        """
         # Hash the password using bcrypt
         return bcrypt.generate_password_hash(password).decode('utf-8')
     
     @staticmethod
     def check_password(password, hashed_password):
+        """
+        Check if the password matches the hashed password
+        Args:
+            password (str): The password to check
+            hashed_password (str): The hashed password to compare
+
+        Returns:
+            bool: True if the password matches the hashed password, False otherwise
+        """
         # Check if the password matches the hashed password
         return bcrypt.check_password_hash(hashed_password, password)
     
@@ -52,7 +72,12 @@ class UserService:
 
     
 
-    def get_users(self):
+    def get_users(self,user_id, limit, offset):
+        """
+        Get all users from the database.
+        Returns:
+            list: A list of users
+        """
         users = user_model.select(
             "id",
             "email",
@@ -70,11 +95,29 @@ class UserService:
             "lastSeen",
             "birthDate",
             "interests",
-        ).build().execute()
+            f'CASE WHEN l1."userId" IS NOT NULL AND l2."userId" IS NOT NULL THEN TRUE ELSE FALSE END AS connected',
+            f'COALESCE(jsonb_agg(row_to_json(p)) FILTER (WHERE p."id" IS NOT NULL), \'[]\') AS "pictures"',
+        )\
+        .join("Picture", "u.id = p.\"userId\"", "LEFT")\
+        .join("Like", f"l1.\"userId\" = {user_id} AND l1.\"likedUserId\" = u.id", "LEFT", 'l1')\
+        .join("Like", f"l2.\"userId\" = u.\"id\" AND l2.\"likedUserId\" = {user_id}", "LEFT", 'l2')\
+        .group_by("u.\"id\"").group_by("l1.\"userId\", l2.\"userId\"")\
+        .limit(limit).offset(offset).build().execute()
         return users
     
-    def get_user_by_id(self, user_id):
-        user = user_model.select("id",
+    def get_user_by_id(self, user_id, viewed_by=None):
+        """
+        Get a user by ID.
+        Args:
+            user_id (int): The ID of the user to retrieve
+
+        Raises:
+            NotFound: If the user with the given ID is not found
+
+        Returns:
+            dict: The user with the given ID
+        """
+        query = user_model.select("id",
             "email",
             "username",
             "lastName",
@@ -90,20 +133,37 @@ class UserService:
             "lastSeen",
             "birthDate",
             "interests",
-            f'COALESCE(jsonb_agg(jsonb_build_object(\'pictureId\', p."id", \'url\', p."url", \'isProfile\',p."isProfile")) FILTER (WHERE p."id" IS NOT NULL), \'[]\') AS "pictures"'
-            ).join("Picture", "u.id = p.\"userId\"", "LEFT").where(f'u."id" = {user_id}').group_by("u.\"id\"").build().execute()
-        # visits = visit_model.select("*").where(f'v."userId" = {user_id}').join("\"User\" u", "v.visitedBy = u.id").build().execute()
+            f'COALESCE(jsonb_agg(row_to_json(p)) FILTER (WHERE p."id" IS NOT NULL), \'[]\') AS "pictures"',
+            )\
+            .join("Picture", "u.id = p.\"userId\"", "LEFT")\
+            
+        if viewed_by and viewed_by != user_id:
+            query = query.select(f'CASE WHEN l1."userId" IS NOT NULL AND l2."userId" IS NOT NULL THEN TRUE ELSE FALSE END AS connected')\
+            .join("Like", f"l1.\"userId\" = {viewed_by} AND l1.\"likedUserId\" = u.id", "LEFT", 'l1')\
+            .join("Like", f"l2.\"userId\" = u.\"id\" AND l2.\"likedUserId\" = {viewed_by}", "LEFT", 'l2')\
+            .group_by("l1.\"userId\", l2.\"userId\"")
+        
+        user = query.where(f'u."id" = {user_id}').group_by("u.\"id\"").build().execute()
+        
         if (len(user) == 0): 
             raise NotFound(f"user with id {user_id} not found")
         return user[0] if len(user) > 0 else None
         
     
     def get_user_by_email(self, email):
-        user = user_model.select("*").where(f'u."email" = \'{email}\'').build().execute()
+        """
+        Get a user by email.
+        Args:
+            email (str): The email of the user to retrieve
+
+        Returns:
+            dict: The user with the given email
+        """
+        user = user_model.select("*").where(f'"email" = \'{email}\'').build().execute()
         return user[0] if len(user) > 0 else None
     
     def get_user_by_username(self, username):
-        user = user_model.select("*").where(f'u."username" = {username}').build().execute()
+        user = user_model.select("*").where(f'"username" = {username}').build().execute()
         return user[0] if len(user) > 0 else None
     
     def format_interests(self, interests):
@@ -134,15 +194,21 @@ class UserService:
         user = user_model.update({"verified": True}).where(f'u."id" = {user_id}').build().execute()
         return user
     
+    def find_like(self, user_id, liked_user_id):
+        like = like_model.select("*").where(f'"userId" = {user_id} AND "likedUserId" = {liked_user_id}').build().execute()
+        return like[0] if len(like) > 0 else None
+    
     def like_user(self, user_id, liked_user_id):
-        like = user_model.select("*").where(f'"userId" = {user_id} AND "likedUserId" = {liked_user_id}').build().execute()
+        like = self.find_like(user_id, liked_user_id)
         if like:
             return "User already liked"
         like_model.insert({"userId": user_id, "likedUserId": liked_user_id}).execute()
+        notification_service.send_notification(liked_user_id, f"User {user_id} liked you", "like")
         return "User liked successfully"
     
     def unlike_user(self, user_id, liked_user_id):
         like_model.delete().where(f'"userId" = {user_id} AND "likedUserId" = {liked_user_id}').build().execute()        
+        notification_service.send_notification(liked_user_id, f"User {user_id} unliked you", "unlike")
         return "User unliked successfully"
     
     def report_user(self, user_id, reported_user_id, reason):
@@ -156,28 +222,30 @@ class UserService:
         block = block_model.select("*").where(f'"blockerId" = {user_id} AND "blockedId" = {blocked_user_id}').build().execute()
         if block:
             return "User already blocked"
+        notification_service.send_notification(blocked_user_id, f"User {user_id} blocked you", "block")
         block_model.insert({"blockerId": user_id, "blockedId": blocked_user_id}).execute()
         return "User blocked successfully"
     
     def unblock_user(self, user_id, blocked_user_id):
         block_model.delete().where(f'"blockerId" = {user_id} AND "blockedId" = {blocked_user_id}').build().execute()
+        notification_service.send_notification(blocked_user_id, f"User {user_id} unblocked you", "unblock")
         return "User unblocked successfully"
     
     
     def visit_user(self, user_id, visited_user_id):
         now = datetime.utcnow()  # Use UTC for consistency
         visit = visit_model.select("*").where(f'v."userId" = {user_id} AND v."visitedBy" = {visited_user_id}').build().execute()
-        print(visit)
         if visit or now - visit['visitedAt'] < timedelta(hours=24):
             return "User already visited within the last 24 hours"
         visit_model.insert({"userId": user_id, "visitedBy": visited_user_id}).execute()
+        notification_service.send_notification(visited_user_id, f"User {user_id} visited your profile", "visit")
         return "User visited successfully"
     
     def get_user_likes(self, user_id):
         likes = like_model.select("*").where(f'"userId" = {user_id}').build().execute()
         return likes
     
-    def get_user_reports(self, user_id):
+    def get_user_reports(self, user_id, limit, offset):
         """
         Get users who reported by the current user.
         Args:
@@ -186,10 +254,10 @@ class UserService:
         Returns:
             list: A list of users who reported by the current user
         """
-        reports = report_model.select("*").where(f'"reporterId" = {user_id}').build().execute()
+        reports = report_model.select("*").limit(limit).offset(offset).where(f'"reporterId" = {user_id}').build().execute()
         return reports
     
-    def get_user_blocked(self, user_id):
+    def get_user_blocked(self, user_id, limit, offset):
         """
         Get users who blocked by the current user.
         Args:
@@ -198,10 +266,10 @@ class UserService:
         Returns:
             list: A list of users who blocked by the current user
         """
-        blocks = block_model.select("*").where(f'"blockerId" = {user_id}').build().execute()
+        blocks = block_model.select("*").where(f'"blockerId" = {user_id}').limit(limit).offset(offset).build().execute()
         return blocks
     
-    def get_user_visits(self, user_id):
+    def get_user_visits(self, user_id, limit, offset):
         """
         Get users who visited the current user.
         Args:
@@ -210,7 +278,7 @@ class UserService:
         Returns:
             list: A list of users who visited the current user
         """
-        visits = visit_model.select("*").where(f'v."userId" = {user_id}').join("\"User\" u", "v.visitedBy = u.id").build().execute()
+        visits = visit_model.select("*").where(f'v."userId" = {user_id}').join("\"User\" u", "v.visitedBy = u.id").limit(limit).offset(offset).build().execute()
         return visits
     
     def find_nearby_users(self, this_lat, this_lon, distance_km):
@@ -327,7 +395,6 @@ class UserService:
         if not user:
             raise NotFound("User not found")
         # Get users with common interests
-        sexual_preferences = user['sexualPreferences']
         coordinate = self.find_nearby_users(user['gpsLatitude'], user['gpsLongitude'], 10)
         query = user_model.select(
             "email",
@@ -351,7 +418,6 @@ class UserService:
             .where(f'u."username" LIKE \'%{username}%\'')\
             .where(f'u."id" NOT IN (SELECT "blockedId" FROM "Block" WHERE "blockerId" = {user_id})')\
             
-        print(filters)
         if filters.get('age'):
             min_age, max_age = self.parse_range_string(filters['age'])
             query = query.where(f'u."birthDate" BETWEEN \'{datetime.now().year - max_age}-01-01\' AND \'{datetime.now().year - min_age}-01-01\'')
@@ -388,3 +454,15 @@ class UserService:
             users = sorted(users, key=lambda x: x['distance'])
         
         return users
+    
+    def get_user_notifications(self, user_id, limit, offset):
+        notifications = notification_service.get_notifications(user_id, limit, offset)
+        return notifications
+
+    def get_user_messages(self, user_id, receiver_id, limit, offset):
+        messages = chat_service.get_messages(user_id, receiver_id, limit, offset)
+        return messages
+    
+    def send_message(self, user_id, receiver_id, message):
+        message = chat_service.create_message(user_id, receiver_id, message)
+        return message

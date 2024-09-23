@@ -1,3 +1,4 @@
+# type: ignore
 from flask import Blueprint, request, current_app
 from server.services.users.service import UserService
 from server.schemas.user_schema import UserSchema, ReportUserSchema
@@ -10,20 +11,20 @@ users = Blueprint('users', __name__)
 users_service = UserService()
 
 @users.route('/', methods=['GET'])
-def get_all_users():
-    try:
-        return users_service.get_users()
-    except Exception as e:
-        return {"message": e.description}, 500
+@login_required
+def get_all_users(user_id):
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    return users_service.get_users(user_id, limit, offset)
     
-@users.route('/<int:user_id>', methods=['GET'])
-def get_user_by_id(user_id):
+    
+@users.route('/<int:id>', methods=['GET'])
+@login_required
+def get_user_by_id(user_id, id):
     try:
-        return users_service.get_user_by_id(user_id)
+        return users_service.get_user_by_id(id, viewed_by=user_id)
     except NotFound as e:
         return {"message": e.description}, 404
-    except Exception as e:
-        return {"message": e.description}, 500
     
 @users.route('/verify/<token>', methods=['GET'])
 @login_required
@@ -98,7 +99,9 @@ def report_user(user_id):
 @users.route('/visit', methods=['GET'])
 @login_required
 def get_visits(user_id):
-    return users_service.get_user_visits(user_id)
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    return users_service.get_user_visits(user_id,   limit, offset)
 
 @users.route('/like', methods=['GET'])
 @login_required
@@ -108,12 +111,16 @@ def get_likes(user_id):
 @users.route('/block', methods=['GET'])
 @login_required
 def get_blocks(user_id):
-    return users_service.get_user_blocks(user_id)
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    return users_service.get_user_blocked(user_id, limit, offset)
 
 @users.route('/report', methods=['GET'])
 @login_required
 def get_reports(user_id):
-    return users_service.get_user_reports(user_id)
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    return users_service.get_user_reports(user_id,  limit, offset)
 
 @users.route('/search', methods=['GET'])
 @login_required
@@ -153,3 +160,10 @@ def get_suggestions(user_id):
         'age': age_filter,
         'location': location_filter
     })
+    
+@users.route('/notifications', methods=['GET'])
+@login_required
+def get_notifications(user_id):
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    return users_service.get_user_notifications(user_id, limit, offset)

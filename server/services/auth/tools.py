@@ -15,7 +15,7 @@ def generate_token(user_id):
     return jwt.encode({
         'user_id': user_id,
         'exp': expiration
-    }, current_app.config['JWT_SECRET_KEY'], algorithm='HS256').decode('utf-8')
+    }, current_app.config['JWT_SECRET_KEY'], algorithm='HS256')
 
 def decode_token(token):
     """Decode JWT token."""

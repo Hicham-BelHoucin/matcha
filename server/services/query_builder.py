@@ -1,3 +1,4 @@
+# type: ignore
 import sqlite3
 import os
 import psycopg2
@@ -57,6 +58,7 @@ class Model:
             for value in data.values()
         )
         self.query = f'INSERT INTO "{self.table}" ({fields}) VALUES ({values})'
+        self.query += ' RETURNING *'  # Add RETURNING clause to the query
         print(self.query)
         self.insert_fields = data
         return self
@@ -80,9 +82,9 @@ class Model:
         self.where_conditions.append(condition)
         return self
 
-    def join(self, table, on_condition, join_type='INNER'):
+    def join(self, table, on_condition, join_type='INNER', table_alias=''):
         self.join_clauses.append(
-            f"{join_type} JOIN \"{table}\" {table[0].lower() if not self.update_fields else ''} ON {on_condition}"
+            f"{join_type} JOIN \"{table}\" {table[0].lower() if not self.update_fields and table_alias == '' else table_alias} ON {on_condition}"
         )
         return self
 
@@ -113,11 +115,11 @@ class Model:
         else:
             # select_clause = "SELECT " + ", ".join([f'"{field}"' for field in self.select_fields])
             select_clause = "SELECT " + ", ".join([
-                self.table[0].lower() + f'."{field}"' if not 'COALESCE' in field else field for field in self.select_fields
+                self.table[0].lower() + f'."{field}"' if not 'COALESCE' in field and field.find('.') == -1 else field for field in self.select_fields
             ])
         # Start building the query
         if not self.delete_fields:
-            self.query = f"{select_clause} FROM \"{self.table}\" {self.table[0].lower() if not self.update_fields else ''}"
+            self.query = f"{select_clause} FROM \"{self.table}\" {self.table[0].lower() if not self.update_fields and not '*' in self.select_fields else ''}"
         
         if self.update_fields:
             #extract name and value from update_fields
@@ -145,7 +147,7 @@ class Model:
 
         if self.offset_value is not None:
             self.query += f' OFFSET {self.offset_value}'
-
+            
         return self
 
     def execute(self):
@@ -160,8 +162,11 @@ class Model:
                 elif self.insert_fields:
                     # For insert
                     cursor.execute(self.query, self.insert_fields)
+                    colnames = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
+                    result = [dict(zip(colnames, row)) for row in rows]
                     self.connection.commit()
-                    return "Data inserted successfully"
+                    return result
                 else:
                     # For select or delete
                     print(self.query)

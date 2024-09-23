@@ -32,8 +32,6 @@ CREATE TABLE "Report" (
     "reason" TEXT NOT NULL  -- Reason for reporting
 );
 
-
-
 -- Table for storing pictures
 CREATE TABLE "Picture" (
     "id" SERIAL PRIMARY KEY,
@@ -66,12 +64,12 @@ CREATE TABLE "Block" (
     "blockedId" INT REFERENCES "User" ("id") ON DELETE CASCADE
 );
 
--- Table for storing connections
-CREATE TABLE "Connection" (
+-- Table for storing direct messages (DMs)
+CREATE TABLE "Dm" (
     "id" SERIAL PRIMARY KEY,
-    "connectedAt" TIMESTAMPTZ DEFAULT NOW(),
-    "userId" INT REFERENCES "User" ("id") ON DELETE CASCADE,
-    "connectionId" INT REFERENCES "User" ("id") ON DELETE CASCADE
+    "sentAt" TIMESTAMPTZ DEFAULT NOW(),
+    "senderId" INT REFERENCES "User" ("id") ON DELETE CASCADE,
+    "receiverId" INT REFERENCES "User" ("id") ON DELETE CASCADE
 );
 
 -- Table for storing messages
@@ -82,13 +80,7 @@ CREATE TABLE "Message" (
     "dmId" INT REFERENCES "Dm" ("id") ON DELETE CASCADE
 );
 
--- Table for storing direct messages (DMs)
-CREATE TABLE "Dm" (
-    "id" SERIAL PRIMARY KEY,
-    "sentAt" TIMESTAMPTZ DEFAULT NOW(),
-    "senderId" INT REFERENCES "User" ("id") ON DELETE CASCADE,
-    "receiverId" INT REFERENCES "User" ("id") ON DELETE CASCADE
-);
+
 
 -- Table for storing notifications
 CREATE TABLE "Notification" (

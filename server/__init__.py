@@ -4,6 +4,7 @@ from flask import Flask
 from .services.query_builder import Model
 from .controllers.users.controller import users
 from .controllers.auth.controller import auth
+from .controllers.chat.controller import chat
 from flask import Flask, request, jsonify
 from .config import Config
 from marshmallow import ValidationError
@@ -20,6 +21,7 @@ def create_app(test_config=None):
 
     app.register_blueprint(users, url_prefix='/users')
     app.register_blueprint(auth, url_prefix='/auth')
+    app.register_blueprint(chat, url_prefix='/chat')
     
     # Initialize socketio with the Flask app
     socketio.init_app(app)
@@ -45,6 +47,26 @@ def create_app(test_config=None):
             "message": error.description
         }, 500
     
+    @app.errorhandler(404)
+    def not_found(error):
+        return {
+            'error': 'Not Found',
+            'message': error.description,
+        }, 404
+    
+    @app.errorhandler(400)
+    def bad_request(error):
+        return {
+            'error': 'Bad Request',
+            'message': error.description,
+        }, 400
+        
+    @app.errorhandler(403)
+    def forbidden(error):
+        return {
+            'error': 'Forbidden',
+            'message': error.description,
+        }, 403
     
     return app
 

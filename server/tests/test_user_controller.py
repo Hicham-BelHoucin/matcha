@@ -1,7 +1,9 @@
+# type: ignore
 import pytest
 from server import create_app
 import logging
 from datetime import datetime
+from test_auth_controller import email
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ def runner(app):
 def auth_token(client):
     """Login and store the access token to reuse in future tests."""
     response = client.post('/auth/login', json={
-        'email': 'hortonmichael@example.org',
+        'email': email,
         'password': 'password'
     })
 
@@ -57,10 +59,10 @@ def test_user_profile(client, auth_token):
     response_json = response.get_json()  # equivalent to response.json
     
     # check if email == 'fhfdhs'
-    assert response_json['email'] == 'hortonmichael@example.org'
+    assert response_json['email'] == email
     
 def test_user_profile_by_id(client, auth_token):
-    id = 732
+    id = 1
     """Test accessing a protected route using the stored access token."""
     headers = {
         'Authorization': f'Bearer {auth_token}'

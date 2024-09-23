@@ -1,3 +1,4 @@
+# type: ignore
 import pytest
 from server import create_app
 import logging
@@ -6,6 +7,7 @@ from faker import Faker
 
 logger = logging.getLogger(__name__)
 fake = Faker()
+email = fake.email()
 
 
 @pytest.fixture()
@@ -41,7 +43,7 @@ def test_auth_register_empty(client):
 def test_auth_register(client):
     response = client.post('/auth/register', json={
         'username': fake.user_name(),
-        'email': fake.email(),
+        'email': email,
         "lastName": "Miller",
         "firstName": "Alex",
         "password": "password",
@@ -58,7 +60,7 @@ def test_auth_register(client):
 
 def test_auth_login(client):
     response = client.post('/auth/login', json={
-        'email': 'hortonmichael@example.org',
+        'email': email,
         'password': 'password'
     })
     assert response.status_code == 200
