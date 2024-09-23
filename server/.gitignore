@@ -7,3 +7,5 @@
 *.vscode
 /myenv/
 .env
+test.html
+config.py

@@ -19,13 +19,17 @@ CREATE TABLE "User" (
     "gpsLatitude" FLOAT,
     "gpsLongitude" FLOAT,
     "lastSeen" TIMESTAMPTZ DEFAULT NOW(),
-    "birthDate" DATE NOT NULL
+    "birthDate" DATE NOT NULL,
+    "interests" VARCHAR(255)[] DEFAULT '{}'
 );
 
--- Table for storing interests
-CREATE TABLE "Interest" (
+-- Table for reporting users as fake accounts
+CREATE TABLE "Report" (
     "id" SERIAL PRIMARY KEY,
-    "tag" VARCHAR(255) UNIQUE NOT NULL
+    "reportedAt" TIMESTAMPTZ DEFAULT NOW(),
+    "reporterId" INT REFERENCES "User" ("id") ON DELETE CASCADE,  -- User who reports
+    "reportedUserId" INT REFERENCES "User" ("id") ON DELETE CASCADE,  -- Reported user
+    "reason" TEXT NOT NULL  -- Reason for reporting
 );
 
 -- Table for storing pictures
@@ -60,12 +64,12 @@ CREATE TABLE "Block" (
     "blockedId" INT REFERENCES "User" ("id") ON DELETE CASCADE
 );
 
--- Table for storing connections
-CREATE TABLE "Connection" (
+-- Table for storing direct messages (DMs)
+CREATE TABLE "Dm" (
     "id" SERIAL PRIMARY KEY,
-    "connectedAt" TIMESTAMPTZ DEFAULT NOW(),
-    "userId" INT REFERENCES "User" ("id") ON DELETE CASCADE,
-    "connectionId" INT REFERENCES "User" ("id") ON DELETE CASCADE
+    "sentAt" TIMESTAMPTZ DEFAULT NOW(),
+    "senderId" INT REFERENCES "User" ("id") ON DELETE CASCADE,
+    "receiverId" INT REFERENCES "User" ("id") ON DELETE CASCADE
 );
 
 -- Table for storing messages
@@ -76,13 +80,7 @@ CREATE TABLE "Message" (
     "dmId" INT REFERENCES "Dm" ("id") ON DELETE CASCADE
 );
 
--- Table for storing direct messages (DMs)
-CREATE TABLE "Dm" (
-    "id" SERIAL PRIMARY KEY,
-    "sentAt" TIMESTAMPTZ DEFAULT NOW(),
-    "senderId" INT REFERENCES "User" ("id") ON DELETE CASCADE,
-    "receiverId" INT REFERENCES "User" ("id") ON DELETE CASCADE
-);
+
 
 -- Table for storing notifications
 CREATE TABLE "Notification" (
@@ -94,13 +92,6 @@ CREATE TABLE "Notification" (
 );
 
 -- Many-to-many relationships
-
--- User to Interest
-CREATE TABLE "_UserToInterest" (
-    "A" INT REFERENCES "User" ("id") ON DELETE CASCADE,
-    "B" INT REFERENCES "Interest" ("id") ON DELETE CASCADE,
-    PRIMARY KEY ("A", "B")
-);
 
 -- User to Picture
 CREATE TABLE "_UserToPicture" (

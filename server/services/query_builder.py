@@ -1,13 +1,16 @@
+# type: ignore
 import sqlite3
 import os
 import psycopg2
 import json
 from werkzeug.exceptions import InternalServerError, BadRequest
+from flask import current_app
 
 
 class Model:
     def __init__(self, table):
         self.table = table
+        self.delete_fields = []
         self.select_fields = []
         self.where_conditions = []
         self.join_clauses = []
@@ -24,20 +27,39 @@ class Model:
     def initialize(self):
         if not self.connection:
             # Use PostgreSQL connection
+            # Get database configuration from Flask app's config
+            user = current_app.config['POSTGRES_USER']
+            password = current_app.config['POSTGRES_PASSWORD']
+            database = current_app.config['POSTGRES_DB']
+            host = current_app.config['DB_HOST']
+            port = current_app.config['DB_PORT']
+
+            # Establish the database connection
             self.connection = psycopg2.connect(
-                user=os.getenv('POSTGRES_USER', 'your_db_user'),
-                password=os.getenv('POSTGRES_PASSWORD', 'your_db_password'),
-                database=os.getenv('POSTGRES_DB', 'your_db_name'),
-                host=os.getenv('DB_HOST', 'localhost'),
-                port=os.getenv('DB_PORT', '5432')
+                user=user,
+                password=password,
+                database=database,
+                host=host,
+                port=port
             )
             print("Database connected")
+    
+    def sanitize_input(self, value):
+        if isinstance(value, str):
+            # Escape single quotes by replacing them with doubled single quotes
+            value = value.replace("'", "''")
+        return value
 
     # Insert method
     def insert(self, data):
         fields = ', '.join(f'"{key}"' for key in data.keys())
-        values = ', '.join(f"%({key})s" for key in data.keys())
+        values = ', '.join(
+            f"'{self.sanitize_input(value)}'" if str(value).find('ARRAY') else str(value) 
+            for value in data.values()
+        )
         self.query = f'INSERT INTO "{self.table}" ({fields}) VALUES ({values})'
+        self.query += ' RETURNING *'  # Add RETURNING clause to the query
+        print(self.query)
         self.insert_fields = data
         return self
 
@@ -49,6 +71,7 @@ class Model:
     # Delete method
     def delete(self):
         self.query = f'DELETE FROM "{self.table}"'
+        self.delete_fields = ["*"]
         return self
 
     def select(self, *fields):
@@ -59,9 +82,9 @@ class Model:
         self.where_conditions.append(condition)
         return self
 
-    def join(self, table, on_condition, join_type='INNER'):
+    def join(self, table, on_condition, join_type='INNER', table_alias=''):
         self.join_clauses.append(
-            f"{join_type} JOIN \"{table}\" ON {on_condition}"
+            f"{join_type} JOIN \"{table}\" {table[0].lower() if not self.update_fields and table_alias == '' else table_alias} ON {on_condition}"
         )
         return self
 
@@ -74,7 +97,7 @@ class Model:
         return self
 
     def order_by(self, field, direction='ASC'):
-        self.order_by_fields.append(f"{field} {direction}")
+        self.order_by_fields.append(f"{self.table[0].lower()}.\"{field}\" {direction}")
         return self
 
     def limit(self, amount):
@@ -90,41 +113,41 @@ class Model:
         if not self.select_fields or '*' in self.select_fields:
             select_clause = "SELECT *"
         else:
-            select_clause = "SELECT " + ", ".join([f'"{field}"' for field in self.select_fields])
-
+            # select_clause = "SELECT " + ", ".join([f'"{field}"' for field in self.select_fields])
+            select_clause = "SELECT " + ", ".join([
+                self.table[0].lower() + f'."{field}"' if not 'COALESCE' in field and field.find('.') == -1 else field for field in self.select_fields
+            ])
         # Start building the query
-        query = f"{select_clause} FROM \"{self.table}\" {self.table[0].lower() if not self.update_fields else ''}"
-        
+        if not self.delete_fields:
+            self.query = f"{select_clause} FROM \"{self.table}\" {self.table[0].lower() if not self.update_fields and not '*' in self.select_fields else ''}"
         
         if self.update_fields:
             #extract name and value from update_fields
             updates = ', '.join([f'"{key}" = \'{value}\'' for key, value in self.update_fields.items()])
-            query = f' UPDATE "{self.table}" SET {updates}'
+            self.query = f' UPDATE "{self.table}" SET {updates}'
 
         if self.join_clauses:
-            query += ' ' + ' '.join(self.join_clauses)
+            self.query += ' ' + ' '.join(self.join_clauses)
 
         if self.where_conditions:
-            query += ' WHERE ' + ' AND '.join(self.where_conditions)
+            self.query += ' WHERE ' + ' AND '.join(self.where_conditions)
     
 
         if self.group_by_fields:
-            query += ' GROUP BY ' + ', '.join(self.group_by_fields)
+            self.query += ' GROUP BY ' + ', '.join(self.group_by_fields)
 
         if self.having_conditions:
-            query += ' HAVING ' + ' AND '.join(self.having_conditions)
+            self.query += ' HAVING ' + ' AND '.join(self.having_conditions)
 
         if self.order_by_fields:
-            query += ' ORDER BY ' + ', '.join(self.order_by_fields)
+            self.query += ' ORDER BY ' + ', '.join(self.order_by_fields)
 
         if self.limit_value is not None:
-            query += f' LIMIT {self.limit_value}'
+            self.query += f' LIMIT {self.limit_value}'
 
         if self.offset_value is not None:
-            query += f' OFFSET {self.offset_value}'
-
-        self.query = query
-        print(self.query)
+            self.query += f' OFFSET {self.offset_value}'
+            
         return self
 
     def execute(self):
@@ -139,10 +162,14 @@ class Model:
                 elif self.insert_fields:
                     # For insert
                     cursor.execute(self.query, self.insert_fields)
+                    colnames = [desc[0] for desc in cursor.description]
+                    rows = cursor.fetchall()
+                    result = [dict(zip(colnames, row)) for row in rows]
                     self.connection.commit()
-                    return "Data inserted successfully"
+                    return result
                 else:
                     # For select or delete
+                    print(self.query)
                     cursor.execute(self.query)
                     if cursor.description:  # Only for SELECT
                         colnames = [desc[0] for desc in cursor.description]
@@ -150,7 +177,8 @@ class Model:
                         result = [dict(zip(colnames, row)) for row in rows]
                         return result
                     else:
-                        return None
+                        self.connection.commit()  # Commit DELETE
+                        return "Operation executed successfully"
         except Exception as e:
             print(f"An error occurred: {e}")
             raise InternalServerError("An error occurred")

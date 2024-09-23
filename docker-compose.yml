@@ -1,5 +1,26 @@
 version: "3"
 services:
+  # backend:
+  #   build:
+  #     context: ./server
+  #   container_name: backend
+  #   env_file:
+  #     - server/.env
+  #   ports:
+  #     - 5000:5000
+  #   volumes:
+  #     - ./server:/app
+  #   depends_on:
+  #     - db
+  # frontend:
+  #   build:
+  #     context: ./client
+  #   container_name: frontend
+  #   ports:
+  #     - 4200:4200
+  #   volumes:
+  #     - ./client:/app
+  #     - /app/node_modules
   db:
     image: postgres
     container_name: postgres
@@ -7,8 +28,8 @@ services:
       - server/.env
     ports:
       - 5432:5432
-    # volumes:
-    #   - ./data:/var/lib/postgresql/data
+    volumes:
+      - ./data:/var/lib/postgresql/data
   adminer:
     image: adminer
     container_name: adminer

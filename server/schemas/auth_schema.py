@@ -24,6 +24,9 @@ class RegisterSchema(Schema):
     sexualPreferences = fields.Str()
     gpsLatitude = fields.Float()
     gpsLongitude = fields.Float()
+    # interests array of strings
+    interests = fields.List(fields.Str())
+    
 
 class ResetPasswordSchema(Schema):
     # check if email is provided and is not empty also check if email is valid
